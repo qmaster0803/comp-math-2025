@@ -9,6 +9,7 @@
 
 #define CAMERA_DIST    15.0f
 #define CONTACT_EPSILON 0.01
+#define COMPLANARITY_EPSILON 0.00001
 
 struct Contact {
     glm::dvec3 point;

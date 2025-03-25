@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include <array>
+#include <glm/mat3x4.hpp>
 
 namespace solver
 {
@@ -23,4 +24,6 @@ namespace solver
     bool check_value_greater(double v1, double v2, double epsilon);
     bool check_value_less(double v1, double v2, double epsilon);
     bool check_value_equal(double v1, double v2, double epsilon);
+
+    void reduce_to_RREF(glm::dmat3x4& matrix);
 }

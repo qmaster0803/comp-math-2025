@@ -5,7 +5,7 @@
 #include <array>
 #include "../view/cube_mesh.h"
 
-#define SURFACE_POINT_CHECK_TOLERANCE 0.01
+#define SURFACE_POINT_CHECK_TOLERANCE 0.05
 
 class Cube
 {
@@ -30,6 +30,7 @@ public:
     std::array<glm::dvec3, 8> get_vertices() const;
 
     bool check_point_on_surface(glm::dvec3 point) const;
+    bool check_point_on_edge(glm::dvec3 point) const;
 private:    
     // State variables
     glm::dvec3 _position;

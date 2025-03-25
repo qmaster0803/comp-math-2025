@@ -54,6 +54,47 @@ bool solver::check_value_equal(double v1, double v2, double epsilon)
     return abs(res) <= epsilon;
 }
 
+void solver::reduce_to_RREF(glm::dmat3x4 &matrix) {
+    int lead = 0;
+    int rowCount = matrix.length();
+    int colCount = matrix[0].length();
+
+    for (int r = 0; r < rowCount; r++) {
+        if (lead >= colCount) break;
+
+        int i = r;
+        while (matrix[i][lead] == 0) {
+            i++;
+            if (i == rowCount) {
+                i = r;
+                lead++;
+                if (lead == colCount) return;
+            }
+        }
+
+        if (i != r) {
+            for (int k = 0; k < colCount; k++) {
+                std::swap(matrix[i][k], matrix[r][k]);
+            }
+        }
+
+        float val = matrix[r][lead];
+        for (int k = 0; k < colCount; k++) {
+            matrix[r][k] /= val;
+        }
+
+        for (int i = 0; i < rowCount; i++) {
+            if (i != r) {
+                float factor = matrix[i][lead];
+                for (int k = 0; k < colCount; k++) {
+                    matrix[i][k] -= factor * matrix[r][k];
+                }
+            }
+        }
+
+        lead++;
+    }
+}
 
 // Explicit instantiation to compile function templates
 #include "../model/cube.h"

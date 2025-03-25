@@ -113,7 +113,6 @@ std::array<glm::dvec3, 8> Cube::get_vertices() const
     return result;
 }
 
-#include <iostream>
 bool Cube::check_point_on_surface(glm::dvec3 point) const
 {
     // convert point to local coordinate system
@@ -137,6 +136,27 @@ bool Cube::check_point_on_surface(glm::dvec3 point) const
             solver::check_value_greater(point.y, _size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
             solver::check_value_less(point.x,    _size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
             solver::check_value_greater(point.x, _size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
+}
+
+bool Cube::check_point_on_edge(glm::dvec3 point) const
+{
+    // convert point to local coordinate system
+    point = glm::inverse(_orientation_matrix) * (point - _position);
+
+    return (solver::check_value_equal(abs(point.x), _size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.y), _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.z,  _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.z,  _size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+
+           (solver::check_value_equal(abs(point.x), _size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.z), _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.y,  _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.y,  _size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+
+           (solver::check_value_equal(abs(point.y), _size.y/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.z), _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.x,  _size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.x,  _size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
 }
 
 std::array<double, 13> Cube::dxdt()

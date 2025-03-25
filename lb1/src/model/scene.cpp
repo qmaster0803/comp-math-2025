@@ -1,4 +1,5 @@
 #include <glm/ext/vector_double4.hpp>
+#include <glm/fwd.hpp>
 #include <random>
 
 #include "scene.h"
@@ -185,8 +186,70 @@ std::vector<Contact> Scene::get_contacts() const
         std::make_pair(vertices1[6], vertices1[4])
     };
 
-    for(const auto &edge : edges0) {
-        
+    for(const auto &edge0 : edges0) {
+        // std::cout << "Edge 0 next" << std::endl;
+        for(const auto &edge1 : edges1) {
+            const glm::dvec3 n0 = (edge0.second - edge0.first);
+            const glm::dvec3 n1 = (edge1.second - edge1.first);
+            const glm::dvec3 ndiff = (edge1.first - edge0.first);
+
+            const double triple_product = glm::dot(n0, glm::cross(n1, ndiff));
+            if(std::abs(triple_product) <= COMPLANARITY_EPSILON)
+                continue;
+
+            const glm::dvec3 cross_product = glm::cross(n0, n1);
+
+            const double dist = std::abs(triple_product) / std::abs(cross_product.length());
+            if(dist <= 2*CONTACT_EPSILON) {
+                std::cout << "dist ok" << std::endl;
+                // std::cout << "M0: (" << edge0.first.x << "; " << edge0.first.y << "; " << edge0.first.z << ")" << std::endl;
+                // std::cout << "M0e: (" << edge0.second.x << "; " << edge0.second.y << "; " << edge0.second.z << ")" << std::endl;
+                // std::cout << "M1: (" << edge1.first.x << "; " << edge1.first.y << "; " << edge1.first.z << ")" << std::endl;
+                // std::cout << "n0: (" << n0.x << "; " << n0.y << "; " << n0.z << ")" << std::endl;
+                // std::cout << "n1: (" << n1.x << "; " << n1.y << "; " << n1.z << ")" << std::endl;
+                // std::cout << dist << std::endl;
+                // std::cout << "Diff: (" << ndiff.x << "; " << ndiff.y << "; " << ndiff.z << ")" << std::endl;
+            
+                // std::cout << triple_product << std::endl;
+                // find perpendicular to this edges - it's middle point will be a contact point
+                // from parametric line equation: (h1/h2 are common points of perpendicular and edge0/edge1)
+                // h1 = (n0.x * t + edge0.first.x; n0.y * t + edge0.first.y; n0.z * t + edge0.first.z)
+                // h2 = (n1.x * s + edge1.first.x; n1.y * s + edge1.first.y; n1.z * s + edge1.first.z)
+                // h1h2 = h2 - h1
+                // 
+                // geometrically cross_product is perpendicular to both of the edges, so it's a normal of perpendicular line
+                // lambda = cross_product
+                
+                // let's define system of linear equations in matrix form
+                //   t  s  lambda C
+                // x
+                // y
+                // z
+
+                glm::dmat3x4 h1h2 = {-n0.x, n1.x, -cross_product.x, edge0.first.x - edge1.first.x,
+                                     -n0.y, n1.y, -cross_product.y, edge0.first.y - edge1.first.y,
+                                     -n0.z, n1.z, -cross_product.z, edge0.first.z - edge1.first.z};
+                                                                  
+                solver::reduce_to_RREF(h1h2);
+
+                const double t = h1h2[0][3];
+                const double s = h1h2[1][3];
+                
+                const glm::dvec3 h1 = {n0.x * t + edge0.first.x, n0.y * t + edge0.first.y, n0.z * t + edge0.first.z};
+                const glm::dvec3 h2 = {n1.x * s + edge1.first.x, n1.y * s + edge1.first.y, n1.z * s + edge1.first.z};
+
+                std::cout << "checks: " << _cubes[0].check_point_on_edge(h1) << "; " << _cubes[1].check_point_on_edge(h2) << std::endl;
+                const bool checks_done = _cubes[0].check_point_on_edge(h1) && _cubes[1].check_point_on_edge(h2);
+                // if(!checks_done)
+                    // continue;
+
+                const glm::dvec3 contact_point = (h1+h2) / 2.0;
+                std::cout << "Edge contact, ";
+                std::cout << "Point(a): (" << contact_point.x << "; " << contact_point.y << "; " << contact_point.z << ")" << std::endl;
+                std::cout << "Point(1): (" << h1.x << "; " << h1.y << "; " << h1.z << ")" << std::endl;
+                std::cout << "Point(2): (" << h2.x << "; " << h2.y << "; " << h2.z << ")" << std::endl;
+            }
+        }
     }
 
     
