@@ -4,13 +4,13 @@
 #include "../compute/solver.h"
 
 Cube::Cube(glm::dvec3 initial_position, glm::dvec3 size, double mass) :
-_position{initial_position}, _size{size}, _mass{mass} {
+_position{initial_position}, size{size}, mass{mass} {
     _cube_mesh = new CubeMesh(size);
     // Compute I_body
     // Because shape of the body is very simple there're no integrals.
-    _body_inertia_tensor = glm::dmat3x3((mass/12)*(_size.y*_size.y + _size.z*_size.z), 0, 0,
-                                        0, (mass/12)*(_size.x*_size.x + _size.z*_size.z), 0,
-                                        0, 0, (mass/12)*(_size.x*_size.x + _size.y*_size.y));
+    _body_inertia_tensor = glm::dmat3x3((mass/12)*(size.y*size.y + size.z*size.z), 0, 0,
+                                        0, (mass/12)*(size.x*size.x + size.z*size.z), 0,
+                                        0, 0, (mass/12)*(size.x*size.x + size.y*size.y));
     _body_inertia_tensor_inv = glm::inverse(_body_inertia_tensor);
     
     _compute_derived_variables();
@@ -20,6 +20,20 @@ void Cube::set_force_and_torque(glm::dvec3 force, glm::dvec3 torque)
 {
     _current_force  = force;
     _current_torque = torque;
+}
+
+#include <iostream>
+void Cube::apply_impulse(const glm::dvec3 &linear, const glm::dvec3 &angular)
+{
+    std::cout << "Before change: " << std::endl;
+    std::cout << "_linear_momentum: (" << _linear_momentum.x << "; " << _linear_momentum.y << "; " << _linear_momentum.z << ")" << std::endl;
+    std::cout << "_angular_momentum: (" << _angular_momentum.x << "; " << _angular_momentum.y << "; " << _angular_momentum.z << ")" << std::endl;
+    _linear_momentum += linear;
+    _angular_momentum += angular;
+    _compute_derived_variables();
+    std::cout << "After change: " << std::endl;
+    std::cout << "_linear_momentum: (" << _linear_momentum.x << "; " << _linear_momentum.y << "; " << _linear_momentum.z << ")" << std::endl;
+    std::cout << "_angular_momentum: (" << _angular_momentum.x << "; " << _angular_momentum.y << "; " << _angular_momentum.z << ")" << std::endl;
 }
 
 glm::mat4 Cube::get_transform() const
@@ -38,7 +52,7 @@ void Cube::_compute_derived_variables()
 {
     _orientation = glm::normalize(_orientation);
     _orientation_matrix = glm::mat3_cast(_orientation);
-    _velocity = _linear_momentum / _mass;
+    _velocity = _linear_momentum / mass;
     
     glm::mat3x3 current_inertia_tensor_inv =
         _orientation_matrix * _body_inertia_tensor_inv * glm::transpose(_orientation_matrix);
@@ -57,7 +71,7 @@ std::array<glm::dvec4, 6> Cube::get_faces() const
     normals[5] = glm::dvec3( 0.0,  0.0, -1.0);  // Down
 
     for(auto &i : normals) {
-        i = i * _orientation_matrix;
+        i = _orientation_matrix * i;
     }
     // now we have correct plane normals in the array, let's find D for every plane
 
@@ -65,15 +79,15 @@ std::array<glm::dvec4, 6> Cube::get_faces() const
         return glm::dot(normal, vertex) * -1.0;
     };
     
-    glm::dvec3 up_left_back_vertex = glm::dvec3(_size.x/-2.0,
-                                                _size.y/2.0,
-                                                _size.z/2.0);
+    glm::dvec3 up_left_back_vertex = glm::dvec3(size.x/-2.0,
+                                                size.y/2.0,
+                                                size.z/2.0);
     
-    glm::dvec3 down_right_front_vertex = glm::dvec3(_size.x/2.0,
-                                                    _size.y/-2.0,
-                                                    _size.z/-2.0);
-    up_left_back_vertex     = (up_left_back_vertex     * _orientation_matrix) + _position;
-    down_right_front_vertex = (down_right_front_vertex * _orientation_matrix) + _position;
+    glm::dvec3 down_right_front_vertex = glm::dvec3(size.x/2.0,
+                                                    size.y/-2.0,
+                                                    size.z/-2.0);
+    up_left_back_vertex     = (_orientation_matrix * up_left_back_vertex    ) + _position;
+    down_right_front_vertex = (_orientation_matrix * down_right_front_vertex) + _position;
 
     std::array<glm::dvec4, 6> result;
     result[0] = glm::dvec4(normals[0], lambda_find_D(normals[0], up_left_back_vertex));
@@ -91,9 +105,9 @@ std::array<glm::dvec4, 6> Cube::get_faces() const
 // 2---3  6---7
 std::array<glm::dvec3, 8> Cube::get_vertices() const
 {
-    double x2 = _size.x/2;
-    double y2 = _size.y/2;
-    double z2 = _size.z/2;
+    double x2 = size.x/2;
+    double y2 = size.y/2;
+    double z2 = size.z/2;
     std::array<glm::dvec3, 8> result;
     result[0] = glm::dvec3(-x2,  y2, z2);
     result[1] = glm::dvec3( x2,  y2, z2);
@@ -106,7 +120,7 @@ std::array<glm::dvec3, 8> Cube::get_vertices() const
     result[7] = glm::dvec3( x2, -y2, -z2);
 
     for(auto &i : result) {
-        i = i * _orientation_matrix;
+        i = _orientation_matrix * i;
         i += _position;
     }
 
@@ -119,23 +133,23 @@ bool Cube::check_point_on_surface(glm::dvec3 point) const
     point = glm::inverse(_orientation_matrix) * (point - _position);
 
     // check whether point belongs to the surface
-    return (solver::check_value_equal(abs(point.x), _size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.y,    _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.y, _size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.z,    _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.z, _size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+    return (solver::check_value_equal(abs(point.x), size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.y,    size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.y, size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.z,    size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.z, size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
     
-           (solver::check_value_equal(abs(point.y), _size.y/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.x,    _size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.x, _size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.z,    _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.z, _size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+           (solver::check_value_equal(abs(point.y), size.y/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.x,    size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.x, size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.z,    size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.z, size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
            
-           (solver::check_value_equal(abs(point.z), _size.z/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.y,    _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.y, _size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(point.x,    _size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(point.x, _size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
+           (solver::check_value_equal(abs(point.z), size.z/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.y,    size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.y, size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(point.x,    size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(point.x, size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
 }
 
 bool Cube::check_point_on_edge(glm::dvec3 point) const
@@ -143,20 +157,40 @@ bool Cube::check_point_on_edge(glm::dvec3 point) const
     // convert point to local coordinate system
     point = glm::inverse(_orientation_matrix) * (point - _position);
 
-    return (solver::check_value_equal(abs(point.x), _size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_equal(abs(point.y), _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(     point.z,  _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(  point.z,  _size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+    return (solver::check_value_equal(abs(point.x), size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.y), size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.z,  size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.z,  size.z/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
 
-           (solver::check_value_equal(abs(point.x), _size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_equal(abs(point.z), _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(     point.y,  _size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(  point.y,  _size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
+           (solver::check_value_equal(abs(point.x), size.x/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.z), size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.y,  size.y/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.y,  size.y/-2.0, SURFACE_POINT_CHECK_TOLERANCE)) ||
 
-           (solver::check_value_equal(abs(point.y), _size.y/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_equal(abs(point.z), _size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_less(     point.x,  _size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
-            solver::check_value_greater(  point.x,  _size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
+           (solver::check_value_equal(abs(point.y), size.y/2.0, SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_equal(abs(point.z), size.z/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_less(     point.x,  size.x/2.0,  SURFACE_POINT_CHECK_TOLERANCE) &&
+            solver::check_value_greater(  point.x,  size.x/-2.0, SURFACE_POINT_CHECK_TOLERANCE));
+}
+
+glm::dvec3 Cube::get_point_velocity(const glm::dvec3 &point) const
+{
+    return _velocity + glm::cross(_angular_velocity, point - _position);
+}
+
+glm::dvec3 Cube::get_position() const
+{
+    return _position;
+}
+
+glm::dvec3 Cube::get_point_r(const glm::dvec3 &point) const
+{
+    return glm::inverse(_orientation_matrix) * (point - _position);
+}
+
+glm::dmat3x3 Cube::get_inverse_inertia_tensor() const
+{
+    return _body_inertia_tensor_inv;
 }
 
 std::array<double, 13> Cube::dxdt()

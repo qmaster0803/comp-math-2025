@@ -68,15 +68,18 @@ std::optional<glm::vec3> intersectSegments(
 
     const glm::dvec3 cross_product = glm::cross(n0, n1);
 
-    const double dist = std::abs(triple_product) / std::abs(cross_product.length());
+    const double dist = std::abs(triple_product) / std::abs(glm::length(cross_product));
+    std::cout << "M0: (" << edge0.first.x << "; " << edge0.first.y << "; " << edge0.first.z << ")" << std::endl;
+    std::cout << "M0e: (" << edge0.second.x << "; " << edge0.second.y << "; " << edge0.second.z << ")" << std::endl;
+    std::cout << "M1: (" << edge1.first.x << "; " << edge1.first.y << "; " << edge1.first.z << ")" << std::endl;
+    std::cout << "n0: (" << n0.x << "; " << n0.y << "; " << n0.z << ")" << std::endl;
+    std::cout << "n1: (" << n1.x << "; " << n1.y << "; " << n1.z << ")" << std::endl;
+    std::cout << "Diff: (" << ndiff.x << "; " << ndiff.y << "; " << ndiff.z << ")" << std::endl;
+    std::cout << "Cross: (" << cross_product.x << "; " << cross_product.y << "; " << cross_product.z << ")" << std::endl;
+    std::cout << "Cross length: " << glm::length(cross_product) << std::endl;
+    std::cout << "Triple product: " << triple_product << std::endl;
+    std::cout << dist << std::endl;
     if(dist <= 0.1) {
-        std::cout << "M0: (" << edge0.first.x << "; " << edge0.first.y << "; " << edge0.first.z << ")" << std::endl;
-        std::cout << "M0e: (" << edge0.second.x << "; " << edge0.second.y << "; " << edge0.second.z << ")" << std::endl;
-        std::cout << "M1: (" << edge1.first.x << "; " << edge1.first.y << "; " << edge1.first.z << ")" << std::endl;
-        std::cout << "n0: (" << n0.x << "; " << n0.y << "; " << n0.z << ")" << std::endl;
-        std::cout << "n1: (" << n1.x << "; " << n1.y << "; " << n1.z << ")" << std::endl;
-        std::cout << dist << std::endl;
-        // std::cout << "Diff: (" << ndiff.x << "; " << ndiff.y << "; " << ndiff.z << ")" << std::endl;
     
         // std::cout << triple_product << std::endl;
         // find perpendicular to this edges - it's middle point will be a contact point
@@ -125,11 +128,11 @@ std::optional<glm::vec3> intersectSegments(
 }
 
 int main() {
-    auto intersection = intersectSegments(vec3(1, 2, 3), vec3(2, 3, 4), vec3(2, 1, 0), vec3(1, 2, 10));
+    auto intersection = intersectSegments(vec3(-10, 1, 1), vec3(10, 1, 1), vec3(1.1, 1.1, 10), vec3(1.1, 1.1, -10));
 
     // intersection = intersectSegments(vec3(1, 2, 3), vec3(4, 6, 8), vec3(2, 1, 0), vec3(2, 4, 6));
 
-    intersection = intersectSegments(vec3(-0.09, -0.5, 0.5), vec3(-0.09, -0.5, -0.5), vec3(-0.1, -0.25, -10), vec3(-0.1, 0.75, -10));
+    // intersection = intersectSegments(vec3(-0.11, 0.5, 0.5), vec3(-0.11, -0.5, 0.5), vec3(-0.1, -0.25, 10), vec3(-0.1, -0.25, -10));
 
     return 0;
 }

@@ -10,11 +10,14 @@
 class Cube
 {
 public:
+    const double mass;
+    const glm::dvec3 size;
     Cube(glm::dvec3 initial_position, glm::dvec3 size, double mass);
 
     glm::mat4 get_transform() const;
 
     void set_force_and_torque(glm::dvec3 force, glm::dvec3 torque);
+    void apply_impulse(const glm::dvec3 &linear, const glm::dvec3 &angular);
     std::array<double, 13> dxdt();
     std::array<double, 13> state_as_array();
     void update_from_array(const std::array<double, 13> &state);
@@ -31,6 +34,11 @@ public:
 
     bool check_point_on_surface(glm::dvec3 point) const;
     bool check_point_on_edge(glm::dvec3 point) const;
+
+    glm::dvec3 get_point_velocity(const glm::dvec3 &point) const;
+    glm::dvec3 get_position() const;
+    glm::dmat3x3 get_inverse_inertia_tensor() const;
+    glm::dvec3 get_point_r(const glm::dvec3 &point) const; // radius-vector    
 private:    
     // State variables
     glm::dvec3 _position;
@@ -42,9 +50,6 @@ private:
     // Constants
     glm::dmat3x3 _body_inertia_tensor;
     glm::dmat3x3 _body_inertia_tensor_inv;
-
-    const double _mass;
-    const glm::dvec3 _size;
 
     // Derived (computed) variables
     glm::dmat3x3 _orientation_matrix;
