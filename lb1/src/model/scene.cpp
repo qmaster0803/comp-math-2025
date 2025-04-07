@@ -12,8 +12,8 @@ Scene::Scene()
     _camera = new Camera();
     this->rotate_camera(0, 0); // just to update camera position
 
-    _cubes.emplace_back(glm::dvec3({-0.7f, 0.0f, 0.0f}), glm::dvec3({1.0f, 1.0f, 1.0f}), 1.0f);
-    _cubes.emplace_back(glm::dvec3({0.0f, 0.0f, 0.0f}), glm::dvec3({0.2f, 0.5f, 20.0f}), 100.0f);
+    _cubes.emplace_back(glm::dvec3({-0.7f, 0.5f, 0.0f}), glm::dvec3({1.0f, 1.0f, 1.0f}), 1.0f);
+    _cubes.emplace_back(glm::dvec3({0.0f, 0.0f, 0.0f}), glm::dvec3({0.2f, 0.5f, 20.0f}), 1.0f);
 }
 
 Scene::~Scene()
@@ -46,6 +46,7 @@ void Scene::rotate_camera(float angle_x, float angle_y)
 void Scene::update(float dt)
 {    
     solver::euler_solver(_cubes[0], dt);
+    solver::euler_solver(_cubes[1], dt);
     _cubes[0].set_force_and_torque(glm::dvec3({0, 0, 0}), glm::dvec3({0, 0, 0}));
     auto contacts = get_contacts();
     process_contacts(contacts);
@@ -53,25 +54,29 @@ void Scene::update(float dt)
 
 void Scene::apply_debug()
 {
-    _cubes[0].set_force_and_torque(glm::dvec3({-10, 0, 0}), glm::dvec3({0, 0, 0}));
+    _cubes[0].set_force_and_torque(glm::dvec3({1, 0, 0}), glm::dvec3({0, 0, 0}));
 }
 
 void Scene::process_contacts(const std::vector<Contact> &contacts)
 {
+    std::array<glm::dvec3, 2> resulting_forces  = {glm::dvec3(0.0, 0.0, 0.0), glm::dvec3(0.0, 0.0, 0.0)};
+    std::array<glm::dvec3, 2> resulting_torques = {glm::dvec3(0.0, 0.0, 0.0), glm::dvec3(0.0, 0.0, 0.0)};
+    unsigned sum_elements = 0;
+
     for(const auto &contact : contacts) {
         // calculate relative velocity of cubes at the contact point
         const glm::dvec3 cube0_pv = _cubes[contact.body_a].get_point_velocity(contact.point);
         const glm::dvec3 cube1_pv = _cubes[contact.body_b].get_point_velocity(contact.point);
         const glm::dvec3 normal_unit = glm::normalize(contact.normal);
         const double contact_velocity = glm::dot(normal_unit, cube0_pv - cube1_pv);
-        std::cout << "contact.point: (" << contact.point.x << "; " << contact.point.y << "; " << contact.point.z << ")" << std::endl;
-        std::cout << "contact.normal: (" << contact.normal.x << "; " << contact.normal.y << "; " << contact.normal.z << ")" << std::endl;
-        std::cout << "cube0_pv: (" << cube0_pv.x << "; " << cube0_pv.y << "; " << cube0_pv.z << ")" << std::endl;
-        std::cout << "cube1_pv: (" << cube1_pv.x << "; " << cube1_pv.y << "; " << cube1_pv.z << ")" << std::endl;
-        std::cout << "Vertex to face: " << contact.vertex_to_face << std::endl;
+        // std::cout << "contact.point: (" << contact.point.x << "; " << contact.point.y << "; " << contact.point.z << ")" << std::endl;
+        // std::cout << "contact.normal: (" << contact.normal.x << "; " << contact.normal.y << "; " << contact.normal.z << ")" << std::endl;
+        // std::cout << "cube0_pv: (" << cube0_pv.x << "; " << cube0_pv.y << "; " << cube0_pv.z << ")" << std::endl;
+        // std::cout << "cube1_pv: (" << cube1_pv.x << "; " << cube1_pv.y << "; " << cube1_pv.z << ")" << std::endl;
+        // std::cout << "Vertex to face: " << contact.vertex_to_face << std::endl;
         std::cout << "Contact velocity: " << contact_velocity << std::endl;
 
-        if(contact_velocity < 0) {
+        if(contact_velocity < -MIN_COLLISION_SPEED) {
             // const glm::dvec3 ra = _cubes[contact.body_a].get_point_r(contact.point);
             // const glm::dvec3 rb = _cubes[contact.body_b].get_point_r(contact.point);
             const glm::dvec3 ra = (contact.point) - _cubes[contact.body_a].get_position();
@@ -90,15 +95,31 @@ void Scene::process_contacts(const std::vector<Contact> &contacts)
             // const glm::dvec3 torque_a = {0,0,0};
             // const glm::dvec3 torque_b = {0,0,0};
 
-            std::cout << "Applied impulse:" << std::endl;
-            std::cout << "force: (" << force.x << "; " << force.y << "; " << force.z << ")" << std::endl;
-            std::cout << "torque_a: (" << torque_a.x << "; " << torque_a.y << "; " << torque_a.z << ")" << std::endl;
-            std::cout << "torque_b: (" << torque_b.x << "; " << torque_b.y << "; " << torque_b.z << ")" << std::endl;
+            // std::cout << "Applied impulse:" << std::endl;
+            // std::cout << "force: (" << force.x << "; " << force.y << "; " << force.z << ")" << std::endl;
+            // std::cout << "torque_a: (" << torque_a.x << "; " << torque_a.y << "; " << torque_a.z << ")" << std::endl;
+            // std::cout << "torque_b: (" << torque_b.x << "; " << torque_b.y << "; " << torque_b.z << ")" << std::endl;
 
-            _cubes[contact.body_a].apply_impulse(force, torque_a);
-            _cubes[contact.body_b].apply_impulse(force, torque_b);
+            resulting_forces[contact.body_a]  += force;
+            resulting_torques[contact.body_a] += torque_a;
+            resulting_forces[contact.body_b]  += -force;
+            resulting_torques[contact.body_b] += -torque_b;
+            ++sum_elements;
         }
         std::cout << std::endl;
+    }
+    if(sum_elements != 0) {
+        resulting_forces[0] /= sum_elements;
+        resulting_forces[1] /= sum_elements;
+        resulting_torques[0] /= sum_elements;
+        resulting_torques[1] /= sum_elements;
+        std::cout << "Applied impulse:" << std::endl;
+        std::cout << "resulting_forces[0]: (" << resulting_forces[0].x << "; " << resulting_forces[0].y << "; " << resulting_forces[0].z << ")" << std::endl;
+        std::cout << "resulting_forces[1]: (" << resulting_forces[1].x << "; " << resulting_forces[1].y << "; " << resulting_forces[1].z << ")" << std::endl;
+        std::cout << "resulting_torques[0]: (" << resulting_torques[0].x << "; " << resulting_torques[0].y << "; " << resulting_torques[0].z << ")" << std::endl;
+        std::cout << "resulting_torques[1]: (" << resulting_torques[1].x << "; " << resulting_torques[1].y << "; " << resulting_torques[1].z << ")" << std::endl;
+        _cubes[0].apply_impulse(resulting_forces[0], resulting_torques[0]);
+        _cubes[1].apply_impulse(resulting_forces[1], resulting_torques[1]);
     }
 }
 

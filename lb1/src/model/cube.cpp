@@ -28,12 +28,14 @@ void Cube::apply_impulse(const glm::dvec3 &linear, const glm::dvec3 &angular)
     std::cout << "Before change: " << std::endl;
     std::cout << "_linear_momentum: (" << _linear_momentum.x << "; " << _linear_momentum.y << "; " << _linear_momentum.z << ")" << std::endl;
     std::cout << "_angular_momentum: (" << _angular_momentum.x << "; " << _angular_momentum.y << "; " << _angular_momentum.z << ")" << std::endl;
+    std::cout << "_velocity: (" << _velocity.x << "; " << _velocity.y << "; " << _velocity.z << ")" << std::endl;
     _linear_momentum += linear;
     _angular_momentum += angular;
     _compute_derived_variables();
     std::cout << "After change: " << std::endl;
     std::cout << "_linear_momentum: (" << _linear_momentum.x << "; " << _linear_momentum.y << "; " << _linear_momentum.z << ")" << std::endl;
-    std::cout << "_angular_momentum: (" << _angular_momentum.x << "; " << _angular_momentum.y << "; " << _angular_momentum.z << ")" << std::endl;
+    std::cout << "_velocity: (" << _velocity.x << "; " << _velocity.y << "; " << _velocity.z << ")" << std::endl;
+    
 }
 
 glm::mat4 Cube::get_transform() const

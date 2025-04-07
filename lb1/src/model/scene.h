@@ -10,7 +10,8 @@
 #define CAMERA_DIST    15.0f
 #define CONTACT_EPSILON 0.05
 #define COMPLANARITY_EPSILON 0.00001
-#define CONTACT_BOUNCY 2.0
+#define CONTACT_BOUNCY 1.0
+#define MIN_COLLISION_SPEED 0.01
 
 struct Contact {
     unsigned body_a, body_b;
