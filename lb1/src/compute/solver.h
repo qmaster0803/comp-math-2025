@@ -15,6 +15,9 @@ namespace solver
     template<HasSolvingMethods T>
     void euler_solver(T &object, double t_to_sim, double step = 0.05);
 
+    template<HasSolvingMethods T>
+    void rk4_solver(T &object, double t_to_sim);
+
     template<std::size_t N>
     void sum_arrays(std::array<double, N> &dest, const std::array<double, N> &src);
     

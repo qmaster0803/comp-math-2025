@@ -20,6 +20,52 @@ void solver::euler_solver(T &object, double t_to_sim, double step)
     }
 }
 
+template<solver::HasSolvingMethods T>
+void solver::rk4_solver(T &object, double t_to_sim)
+{
+    auto initial_state = object.state_as_array();
+    
+    // Compute k1 (derivative at 0)
+    auto k1 = object.dxdt();
+    auto state_k1 = initial_state;
+    solver::mul_array(k1, t_to_sim * 0.5); // k1 = h*k1/2
+    solver::sum_arrays(state_k1, k1);      // state_k1 = initial_state + h*k1/2
+    
+    // Compute k2 (derivative at h*k1 / 2)
+    object.update_from_array(state_k1);
+    auto k2 = object.dxdt();
+    auto state_k2 = initial_state;
+    solver::mul_array(k2, t_to_sim * 0.5); // k2 = h*k2/2
+    solver::sum_arrays(state_k2, k2);      // state_k2 = initial_state + h*k2/2
+
+    // Compute k3 (derivative at h*k2 / 2)
+    object.update_from_array(state_k2);
+    auto k3 = object.dxdt();
+    auto state_k3 = initial_state;
+    solver::mul_array(k3, t_to_sim);       // k3 = h*k3
+    solver::sum_arrays(state_k2, k2);      // state_k3 = initial_state + h*k3
+
+    // Compute k4 (derivative at h*k3)
+    object.update_from_array(state_k3);
+    auto k4 = object.dxdt();
+    solver::mul_array(k4, t_to_sim);       // k4 = h*k4
+
+    // Compute result
+    // (h / 6) * (k1 + 2*k2 + 2*k3 + k4) = (1/6) * (h*k1 + h*2*k2 + h*2*k3 + h*k4)
+    solver::mul_array(k1, 2.0); // k1 = h*k1
+    solver::mul_array(k2, 4.0); // k2 = h*2*k2
+    solver::mul_array(k3, 2.0); // k3 = h*2*k3
+
+    solver::sum_arrays(k1, k2);
+    solver::sum_arrays(k1, k3);
+    solver::sum_arrays(k1, k4);
+
+    solver::mul_array(k1, 1.0 / 6.0);
+    solver::sum_arrays(initial_state, k1);
+
+    object.update_from_array(initial_state);
+}
+
 template<std::size_t N>
 void solver::sum_arrays(std::array<double, N> &dest, const std::array<double, N> &src)
 {
@@ -99,5 +145,6 @@ void solver::reduce_to_RREF(glm::dmat3x4 &matrix) {
 // Explicit instantiation to compile function templates
 #include "../model/cube.h"
 template void solver::euler_solver<Cube>(Cube&, double, double);
+template void solver::rk4_solver<Cube>(Cube&, double);
 template void solver::sum_arrays<13>(std::array<double, 13>&, const std::array<double, 13>&);
 template void solver::mul_array<13>(std::array<double, 13>&, double);
