@@ -10,7 +10,7 @@
 #define CAMERA_DIST    15.0f
 #define CONTACT_EPSILON 0.05
 #define COMPLANARITY_EPSILON 0.00001
-#define CONTACT_BOUNCY 1.0
+// #define ELASTIC
 #define MIN_COLLISION_SPEED 0.01
 
 struct Contact {
@@ -46,7 +46,7 @@ public:
     void process_contacts(const std::vector<Contact> &contacts);
 
     void rotate_camera(float angle_x, float angle_y);
-    void apply_debug();
+    void apply_action();
 
 private:
     Camera *_camera;

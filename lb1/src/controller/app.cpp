@@ -43,7 +43,7 @@ void App::_setup_glfw()
 void App::_handle_input()
 {
     if (glfwGetKey(_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        _scene->apply_debug();
+        _scene->apply_action();
     }
 
     
@@ -69,7 +69,7 @@ void App::run()
         
         std::chrono::steady_clock::time_point timestamp_new = std::chrono::steady_clock::now();
         float seconds_on_frame = std::chrono::duration_cast<std::chrono::microseconds>(timestamp_new - timestamp).count() / 1000000.0f;
-        _scene->update(seconds_on_frame);
+        _scene->update(seconds_on_frame/2);
         _renderer->render(*_scene);
         timestamp = timestamp_new;
     }

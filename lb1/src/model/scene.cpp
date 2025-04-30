@@ -12,8 +12,14 @@ Scene::Scene()
     _camera = new Camera();
     this->rotate_camera(0, 0); // just to update camera position
 
-    _cubes.emplace_back(glm::dvec3({-0.7f, 0.5f, 0.0f}), glm::dvec3({1.0f, 1.0f, 1.0f}), 1.0f);
-    _cubes.emplace_back(glm::dvec3({0.0f, 0.0f, 0.0f}), glm::dvec3({0.2f, 0.5f, 20.0f}), 1.0f);
+    // falling one
+    _cubes.emplace_back(glm::dvec3({0.0f, 0.0f, 2.0f}),
+                        glm::dvec3({1.0f, 1.0f, 1.0f}), 1.0f);
+
+    // steady one
+    _cubes.emplace_back(glm::dvec3({0.0f, 0.0f, 0.0f}),
+                        glm::dvec3({0.0f, 0.5f, 0.0f}),
+                        glm::dvec3({0.2f, 10.0f, 10.0f}), 10.0f);
 }
 
 Scene::~Scene()
@@ -45,16 +51,21 @@ void Scene::rotate_camera(float angle_x, float angle_y)
 
 void Scene::update(float dt)
 {    
-    solver::euler_solver(_cubes[0], dt);
-    solver::euler_solver(_cubes[1], dt);
+    solver::rk4_solver(_cubes[0], dt);
+    solver::rk4_solver(_cubes[1], dt);
     _cubes[0].set_force_and_torque(glm::dvec3({0, 0, 0}), glm::dvec3({0, 0, 0}));
     auto contacts = get_contacts();
     process_contacts(contacts);
 }
 
-void Scene::apply_debug()
+void Scene::apply_action()
 {
-    _cubes[0].set_force_and_torque(glm::dvec3({1, 0, 0}), glm::dvec3({0, 0, 0}));
+    static bool applied = false;
+    // _cubes[0].set_force_and_torque(glm::dvec3({0, 0, -1}), glm::dvec3({0, 0, 0}));
+    if(!applied) {
+        _cubes[0].apply_impulse(glm::dvec3{0, 0, -2.5}, glm::dvec3{0, 0, 0});
+        applied = true;
+    }
 }
 
 void Scene::process_contacts(const std::vector<Contact> &contacts)
@@ -82,7 +93,11 @@ void Scene::process_contacts(const std::vector<Contact> &contacts)
             const glm::dvec3 ra = (contact.point) - _cubes[contact.body_a].get_position();
             const glm::dvec3 rb = (contact.point) - _cubes[contact.body_b].get_position();
 
-            const double num = -(1.0 + CONTACT_BOUNCY) * contact_velocity;
+            double bouncy = 1.0;
+            #ifdef ELASTIC
+            bouncy = 3.576;
+            #endif
+            const double num = -(1.0 + bouncy) * contact_velocity;
             const double denom = (1.0 / _cubes[contact.body_a].mass) +
                                  (1.0 / _cubes[contact.body_b].mass) +
                                  glm::dot(normal_unit, glm::cross(_cubes[contact.body_a].get_inverse_inertia_tensor() * glm::cross(ra, normal_unit), ra)) +
@@ -181,7 +196,10 @@ std::vector<Contact> Scene::get_contacts() const
     }
 
     static std::size_t count = 0;
-    std::cout << "c=" << count++ << "; found=" << curr_sep_planes.size() << std::endl;
+    double KE0 = _cubes[0].get_kinetic_energy();
+    double KE1 = _cubes[1].get_kinetic_energy();
+    std::cout << "c=" << count++ << "; found=" << curr_sep_planes.size() << "; KE0=" <<
+                 KE0 << "; KE1=" << KE1 << "; KE_sum=" << KE0 + KE1 << std::endl;
      // << "; plane=(" <<
      //             separating_face.x << ", " << separating_face.y << ", " <<
      //             separating_face.z << ", " << separating_face.w << "); " << 

@@ -13,6 +13,7 @@ public:
     const double mass;
     const glm::dvec3 size;
     Cube(glm::dvec3 initial_position, glm::dvec3 size, double mass);
+    Cube(glm::dvec3 initial_position, glm::dvec3 euler, glm::dvec3 size, double mass);
 
     glm::mat4 get_transform() const;
 
@@ -39,6 +40,7 @@ public:
     glm::dvec3 get_position() const;
     glm::dmat3x3 get_inverse_inertia_tensor() const;
     glm::dvec3 get_point_r(const glm::dvec3 &point) const; // radius-vector    
+    double get_kinetic_energy() const;
 private:    
     // State variables
     glm::dvec3 _position;
@@ -57,6 +59,8 @@ private:
     glm::dvec3   _angular_velocity;
     glm::dvec3   _current_force;
     glm::dvec3   _current_torque;
+
+    double _full_kinetic_energy = 0;
 
     CubeMesh *_cube_mesh;
 

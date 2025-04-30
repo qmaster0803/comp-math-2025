@@ -1,10 +1,29 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/norm.hpp>
 #include "cube.h"
 #include "../compute/solver.h"
 
 Cube::Cube(glm::dvec3 initial_position, glm::dvec3 size, double mass) :
-_position{initial_position}, size{size}, mass{mass} {
+_position{initial_position}, size{size}, mass{mass}
+{
+    _cube_mesh = new CubeMesh(size);
+    // Compute I_body
+    // Because shape of the body is very simple there're no integrals.
+    _body_inertia_tensor = glm::dmat3x3((mass/12)*(size.y*size.y + size.z*size.z), 0, 0,
+                                        0, (mass/12)*(size.x*size.x + size.z*size.z), 0,
+                                        0, 0, (mass/12)*(size.x*size.x + size.y*size.y));
+    _body_inertia_tensor_inv = glm::inverse(_body_inertia_tensor);
+    
+    _compute_derived_variables();
+}
+
+Cube::Cube(glm::dvec3 initial_position, glm::dvec3 euler, glm::dvec3 size, double mass) :
+           _orientation{glm::normalize(glm::dquat(euler.x, 1.0, 0.0, 0.0) *
+                                       glm::dquat(euler.y, 0.0, 1.0, 0.0) *
+                                       glm::dquat(euler.z, 0.0, 0.0, 1.0))},
+           _position{initial_position}, size{size}, mass{mass}
+{
     _cube_mesh = new CubeMesh(size);
     // Compute I_body
     // Because shape of the body is very simple there're no integrals.
@@ -59,6 +78,11 @@ void Cube::_compute_derived_variables()
     glm::mat3x3 current_inertia_tensor_inv =
         _orientation_matrix * _body_inertia_tensor_inv * glm::transpose(_orientation_matrix);
     _angular_velocity = current_inertia_tensor_inv * _angular_momentum;
+
+    double linear_kinetic_energy = glm::dot(_velocity, _velocity) * mass * 0.5;
+    glm::dvec3 I_omega = _body_inertia_tensor* _angular_velocity; // I * ω
+    double angular_kinetic_energy = 0.5 * glm::dot(_angular_velocity, I_omega);
+    _full_kinetic_energy = linear_kinetic_energy + angular_kinetic_energy;
 }
 
 std::array<glm::dvec4, 6> Cube::get_faces() const
@@ -188,6 +212,11 @@ glm::dvec3 Cube::get_position() const
 glm::dvec3 Cube::get_point_r(const glm::dvec3 &point) const
 {
     return glm::inverse(_orientation_matrix) * (point - _position);
+}
+
+double Cube::get_kinetic_energy() const
+{
+    return _full_kinetic_energy;
 }
 
 glm::dmat3x3 Cube::get_inverse_inertia_tensor() const
