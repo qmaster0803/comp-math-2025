@@ -18,6 +18,7 @@
 
 #include "math_config.h"
 
+// [ANNOTATION] Размер таблицы предвычисленных значений
 #define N (1 << EXP_TABLE_BITS)
 
 const struct exp_data __exp_data = {

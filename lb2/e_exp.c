@@ -18,18 +18,36 @@
 
 #include <math.h>
 #include <stdint.h>
+/* [ANNOTATION]
+   Содержит макросы и инструменты для управления оптимизациями компилятора,
+   которые необходимы для корректной работы математических функций. */
 #include <math-barriers.h>
+/* [ANNOTATION]
+   Ещё вспомогательные функции для корректных вычислений. */
 #include <math-narrow-eval.h>
-/*
- * Обеспечивает совместимость со стандартом SVID (System V Interface Definition),
- * определяя макросы для условной компиляции.
- */
+/* [ANNOTATION]
+   Обеспечивает совместимость математических функций со стандартом
+   SVID (System V Interface Definition). Добавляет макросы для проверки
+   необходимости включения совместимости с SVID. */
 #include <math-svid-compat.h>
+/* [ANNOTATION]
+   Используется для создания псевдонимов математических функций, которые
+   гарантированное работают только с конечными значениями (не NaN, inf и т.д).
+   Это позволяет оптимизировать производительность и обеспечить корректное
+   поведение функий в контекстах, где аргументы заведомо ограничены. */
 #include <libm-alias-finite.h>
+/* [ANNOTATION]
+   Похожий на прошлый инструмент, создаёт alias'ы для double функций. */
 #include <libm-alias-double.h>
-
+/* [ANNOTATION]
+   Содержит платформо-зависимые настройки и константы, используемые для
+   оптимизации математических функиий (например, exp, sin, log). Служит
+   централизованным местом для управления параметрами точности, алгоритмами
+   и аппаратными особенностями. Позволяет адаптировать код под разные
+   архитектуры и компиляторы. */
 #include "math_config.h"
 
+// [ANNOTATION] Размер таблицы предвычисленных значений
 #define N (1 << EXP_TABLE_BITS)
 #define InvLn2N __exp_data.invln2N
 #define NegLn2hiN __exp_data.negln2hiN
@@ -41,6 +59,13 @@
 #define C4 __exp_data.poly[7 - EXP_POLY_ORDER]
 #define C5 __exp_data.poly[8 - EXP_POLY_ORDER]
 
+/* [ANNOTATION]
+   Обрабатывает пограничные случаи:
+   - Overflow: если результат превышает максимальное представимое значение
+     double, возвращает HUGE_VAL с установкой флага переполнения.
+   - Underflow: если результат близок к нулю, возвращает 0.0 с установкой
+     флага потери точности.
+   - Scale:  . */
 /* Handle cases that may overflow or underflow when computing the result that
    is scale*(1+TMP) without intermediate rounding.  The bit representation of
    scale is in SBITS, however it has a computed exponent that may have
@@ -75,6 +100,13 @@ specialcase (double_t tmp, uint64_t sbits, uint64_t ki)
       lo = scale - y + scale * tmp;
       hi = 1.0 + y;
       lo = 1.0 - hi + y + lo;
+      /* [ANNOTATION]
+         Функция math_narrow_eval нужная для контроля над точностью
+         промежуточных вычислений с плавающей точкой. Основной задачей
+         является гарантирование того, что результаты выражений соответствуют
+         ожидаемой точности типа данных (например, float или double), даже
+         если компилятор или аппарутар используют более высокую точность
+         (например, 80-битные регистры x87 на x86). */
       y = math_narrow_eval (hi + lo) - 1.0;
       /* Avoid -0.0 with downward rounding.  */
       if (WANT_ROUNDING && y == 0.0)
@@ -98,6 +130,10 @@ top12 (double x)
 #endif
 
 double
+/* [ANNOTATION]
+   Раскрывается в инструкцию, которая размещает код функции в отдельной
+   секции кода.
+   Например для GCC: __attribute__((section(".text.exp")))*/
 SECTION
 __exp (double x)
 {
@@ -137,6 +173,8 @@ __exp (double x)
   ki = converttoint (z);
 #else
   /* z - kd is in [-1, 1] in non-nearest rounding modes.  */
+  /* [ANNOTATION]
+     См. строку 92. */
   kd = math_narrow_eval (z + Shift);
   ki = asuint64 (kd);
   kd -= Shift;
