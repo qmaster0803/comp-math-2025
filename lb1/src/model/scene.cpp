@@ -51,8 +51,18 @@ void Scene::rotate_camera(float angle_x, float angle_y)
 
 void Scene::update(float dt)
 {    
+    #ifdef USE_EULER
+    solver::euler_solver(_cubes[0], dt);
+    solver::euler_solver(_cubes[1], dt);
+    #endif
+    #ifdef USE_RK4
     solver::rk4_solver(_cubes[0], dt);
     solver::rk4_solver(_cubes[1], dt);
+    #endif
+    #ifdef USE_RK5
+    solver::rk5_solver(_cubes[0], dt);
+    solver::rk5_solver(_cubes[1], dt);
+    #endif
     _cubes[0].set_force_and_torque(glm::dvec3({0, 0, 0}), glm::dvec3({0, 0, 0}));
     auto contacts = get_contacts();
     process_contacts(contacts);
@@ -95,7 +105,12 @@ void Scene::process_contacts(const std::vector<Contact> &contacts)
 
             double bouncy = 1.0;
             #ifdef ELASTIC
-            bouncy = 3.576;
+                #ifdef USE_RK4
+                bouncy = 3.576;
+                #endif
+                #ifdef USE_RK5
+                bouncy = 3.57529;
+                #endif
             #endif
             const double num = -(1.0 + bouncy) * contact_velocity;
             const double denom = (1.0 / _cubes[contact.body_a].mass) +

@@ -7,11 +7,18 @@
 #include "camera.h"
 #include "cube.h"
 
+
+#define ELASTIC
+// #define USE_EULER
+// #define USE_RK4
+#define USE_RK5
+
+
 #define CAMERA_DIST    15.0f
 #define CONTACT_EPSILON 0.05
 #define COMPLANARITY_EPSILON 0.00001
-// #define ELASTIC
 #define MIN_COLLISION_SPEED 0.01
+
 
 struct Contact {
     unsigned body_a, body_b;
