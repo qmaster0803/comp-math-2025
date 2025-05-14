@@ -49,11 +49,15 @@
 
 // [ANNOTATION] Размер таблицы предвычисленных значений
 #define N (1 << EXP_TABLE_BITS)
+// [ANNOTATION] Коэффициенты для редукции аргумента
 #define InvLn2N __exp_data.invln2N
 #define NegLn2hiN __exp_data.negln2hiN
 #define NegLn2loN __exp_data.negln2loN
+// [ANNOTATION] Константа для округления чисел (зависит от архитектуры)
 #define Shift __exp_data.shift
+// [ANNOTATION] Таблица предвычисленных значений для 2^{k/N}
 #define T __exp_data.tab
+// [ANNOTATION] Коэффициенты полинома, аппроксимирующего exp(r)
 #define C2 __exp_data.poly[5 - EXP_POLY_ORDER]
 #define C3 __exp_data.poly[6 - EXP_POLY_ORDER]
 #define C4 __exp_data.poly[7 - EXP_POLY_ORDER]
@@ -65,7 +69,6 @@
      double, возвращает HUGE_VAL с установкой флага переполнения.
    - Underflow: если результат близок к нулю, возвращает 0.0 с установкой
      флага потери точности.
-   - Scale:  . */
 /* Handle cases that may overflow or underflow when computing the result that
    is scale*(1+TMP) without intermediate rounding.  The bit representation of
    scale is in SBITS, however it has a computed exponent that may have
@@ -74,11 +77,16 @@
    adjustment of scale, positive k here means the result may overflow and
    negative k means the result may underflow.  */
 static inline double
+/* [ANNOTATION]
+   tmp - значение аппроксимации r за вычетом 1.0;
+   sbits - битовое представление числа scale (масштабирующего множителя
+           2^{k/N} в формате IEEE754);
+   ki - целое число k, полученное в результате редукции x. */
 specialcase (double_t tmp, uint64_t sbits, uint64_t ki)
 {
   double_t scale, y;
 
-  if ((ki & 0x80000000) == 0)
+  if ((ki & 0x80000000) == 0) // k > 0
     {
       /* k > 0, the exponent of scale might have overflowed by <= 460.  */
       sbits -= 1009ull << 52;
@@ -105,7 +113,7 @@ specialcase (double_t tmp, uint64_t sbits, uint64_t ki)
          промежуточных вычислений с плавающей точкой. Основной задачей
          является гарантирование того, что результаты выражений соответствуют
          ожидаемой точности типа данных (например, float или double), даже
-         если компилятор или аппарутар используют более высокую точность
+         если компилятор или аппаратура используют более высокую точность
          (например, 80-битные регистры x87 на x86). */
       y = math_narrow_eval (hi + lo) - 1.0;
       /* Avoid -0.0 with downward rounding.  */
@@ -118,6 +126,7 @@ specialcase (double_t tmp, uint64_t sbits, uint64_t ki)
   return check_uflow (y);
 }
 
+// [ANNOTATION] Получение первых 12 бит x (знак и экспонента)
 /* Top 12 bits of a double (sign and exponent bits).  */
 static inline uint32_t
 top12 (double x)
@@ -133,23 +142,45 @@ double
 /* [ANNOTATION]
    Раскрывается в инструкцию, которая размещает код функции в отдельной
    секции кода.
-   Например для GCC: __attribute__((section(".text.exp")))*/
+   Например для GCC: __attribute__((section(".text.exp"))). */
 SECTION
 __exp (double x)
 {
+  // [ANNOTATION] Экспонента числа x в формате IEEE754
   uint32_t abstop;
+  /* [ANNOTATION]
+     ki и idx -- индекс для доступа к таблице предвычисленных значений
+     top и sbits */
   uint64_t ki, idx, top, sbits;
   /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
+  /* [ANNOTATION]
+     kd, z, r -- промежуточные значения для вычислений
+     r2, scale -- квадрат остатка r и мастабирующий множитель
+     tail, tmp -- дополнительные члены для точного суммирования. */
   double_t kd, z, r, r2, scale, tail, tmp;
 
   abstop = top12 (x) & 0x7ff;
+  /* [ANNOTATION]
+     Разворачивается в __builtin_expect для GCC. Данный интринсик
+     говорит компилятору, что первый аргумент (условие), скорее
+     всего будет равен какому-то числу (0 или 1).
+     
+     Проверка, выходит ли экспонента x за пределы диапазона [2^-54, 512] */
   if (__glibc_unlikely (abstop - top12 (0x1p-54)
 			>= top12 (512.0) - top12 (0x1p-54)))
     {
+      /* [ANNOTATION]
+         Обработка очень маленьких x. Если x настолько мал, что его
+         экспонента меньше, чем 2^-54, то:
+         - 1.0 + x (если требуется округление)
+         - x (если округление не требуется)*/
       if (abstop - top12 (0x1p-54) >= 0x80000000)
 	/* Avoid spurious underflow for tiny x.  */
 	/* Note: 0 is common input.  */
 	return WANT_ROUNDING ? 1.0 + x : 1.0;
+
+      /* [ANNOTATION]
+         Обработка underflow и overflow */
       if (abstop >= top12 (1024.0))
 	{
 	  if (asuint64 (x) == asuint64 (-INFINITY))
@@ -161,13 +192,26 @@ __exp (double x)
 	  else
 	    return __math_oflow (0);
 	}
+      /* [ANNOTATION]
+         Если x находится в диапазоне [512, 1024), то код переходит
+         к специальной обработке больших чисел, но не бесконечно
+         больших. */
       /* Large x is special cased below.  */
       abstop = 0;
     }
 
   /* exp(x) = 2^(k/N) * exp(r), with exp(r) in [2^(-1/2N),2^(1/2N)].  */
   /* x = ln2/N*k + r, with int k and r in [-ln2/2N, ln2/2N].  */
+  /* [ANNOTATION]
+     Значение масштабированного аргумента. */
   z = InvLn2N * x;
+  
+/* [ANNOTATION]
+   Используем интринсики, если они есть, иначе вычисляем
+   вручную. Ниже вычисляется значение k для мастшабирования и
+   дальнейших вычислений.
+   kd -- мастиброванная штука, округлённая до целого числа
+   ki -- ковертированный в integer тип kd */
 #if TOINT_INTRINSICS
   kd = roundtoint (z);
   ki = converttoint (z);
@@ -179,6 +223,8 @@ __exp (double x)
   ki = asuint64 (kd);
   kd -= Shift;
 #endif
+  /* [ANNOTATION]
+     Вычисление остатка с использованием старшей и младшей части NegLn2N. */
   r = x + kd * NegLn2hiN + kd * NegLn2loN;
   /* 2^(k/N) ~= scale * (1 + tail).  */
   idx = 2 * (ki % N);
