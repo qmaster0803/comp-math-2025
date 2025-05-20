@@ -53,17 +53,19 @@ bisection_method(const double nu_target, const double gamma,
                  const size_t max_iterations,
                  const double tolerance)
 {
-    printf("Bisection method for [nu_target=%lf], [gamma=%lf]\n",
+    printf("---------------------\n");
+    printf("Bisection method\n[nu_target=%lf]\n[gamma=%lf]\n",
            nu_target, gamma);
+    printf("---------------------\n");
 
     double a, b;
     find_bounds(&a, &b, gamma, nu_target);
-    printf("Initial bisection bound: [%lf;%lf]\n", a, b);
+    printf("Initial bisection bound: [%lf ; %lf]\n", a, b);
 
     double c;
     for (size_t i = 0; i < max_iterations; ++i) {
         c = (a + b) * 0.5;
-        printf("iteraton=%ld: c=%lf\n", i, c);
+        printf("iter: %4ld: c=%.17lf\n", i, c);
 
         const double fc = f(c, gamma, nu_target);
         if (fabs(fc) < tolerance) return c;
@@ -82,8 +84,10 @@ chord_method(const double nu_target, const double gamma,
              const size_t max_iterations,
              const double tolerance)
 {
-    printf("Chords method for [nu_target=%lf], [gamma=%lf]\n",
+    printf("---------------------\n");
+    printf("Chords method\n[nu_target=%lf]\n[gamma=%lf]\n",
            nu_target, gamma);
+    printf("---------------------\n");
 
     double a, b;
     find_bounds(&a, &b, gamma, nu_target);
@@ -99,7 +103,7 @@ chord_method(const double nu_target, const double gamma,
         // Linear interpolation between (a, fa) and (b, fb)
         double c = (a * fb - b * fa) / (fb - fa);
         double fc = f(c, gamma, nu_target);
-        printf("iteraton=%ld: c=%lf\n", i, c);
+        printf("iter: %4ld: c=%.17lf\n", i, c);
 
         if (fabs(fc) < tolerance) return c;
 
@@ -121,10 +125,13 @@ main(void)
 {
     const double nu_target = .46;   // Angle
     const double gamma = 1.4;       // Heat capacity ratio
+    const double tolerance = 1e-10;
+    const size_t max_iterations = 1000;
     
 
-    printf("%lf\n", bisection_method(nu_target, gamma, 1000, 1e-10));
-    printf("%lf\n", chord_method(nu_target, gamma, 1000, 1e-10));
+    printf("Solution machs: %.17lf\n", bisection_method(nu_target, gamma, max_iterations, tolerance));
+    putchar('\n');
+    printf("Solution machs: %.17lf\n", chord_method(nu_target, gamma, max_iterations, tolerance));
 
     return 0;
 }
