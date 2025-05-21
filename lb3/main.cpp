@@ -32,9 +32,7 @@ df(const double M, const double gamma)
 void
 find_bounds(double* a, double* b, const double gamma, const double nu_target)
 {
-    // Doesn't work with this. <TODO> later
-    // *a = 1.0 + 1e-20;
-    *a = 1.0 + 1e-5;
+    *a = 1.0 + 1e-15;
     *b = *a;
 
     double step = 0.1;
@@ -107,12 +105,14 @@ chord_method(const double nu_target, const double gamma,
 
         if (fabs(fc) < tolerance) return c;
 
+        // If f(a) and f(b) have different signs
         if (fa * fb < 0) {
-            b = c;
-            fb = fc;
-        } else {
             a = c;
             fa = fc;
+        // Case when, projection from f(c) became same sign as f(b)
+        } else {
+            b = c;
+            fb = fc;
         }
     }
 
@@ -123,11 +123,10 @@ chord_method(const double nu_target, const double gamma,
 int
 main(void)
 {
-    const double nu_target = .46;   // Angle
+    const double nu_target = 1.5;   // Angle
     const double gamma = 1.4;       // Heat capacity ratio
-    const double tolerance = 1e-10;
+    const double tolerance = 1e-16;
     const size_t max_iterations = 1000;
-    
 
     printf("Solution machs: %.17lf\n", bisection_method(nu_target, gamma, max_iterations, tolerance));
     putchar('\n');
