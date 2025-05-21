@@ -114,6 +114,7 @@ chord_method(const double nu_target, const double gamma,
             b = c;
             fb = fc;
         }
+        // printf("a=%lf, b=%lf\n", a, b);
     }
 
     throw std::runtime_error("bisection_method(): Failed to converge");
@@ -123,9 +124,9 @@ chord_method(const double nu_target, const double gamma,
 int
 main(void)
 {
-    const double nu_target = 1.5;   // Angle
-    const double gamma = 1.4;       // Heat capacity ratio
-    const double tolerance = 1e-16;
+    const double nu_target = 1 - 1e-3;   // Angle
+    const double gamma = 1.4;            // Heat capacity ratio
+    const double tolerance = 5e-16;
     const size_t max_iterations = 1000;
 
     printf("Solution machs: %.17lf\n", bisection_method(nu_target, gamma, max_iterations, tolerance));
